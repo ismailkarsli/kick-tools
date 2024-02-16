@@ -1,0 +1,26 @@
+{
+	"manifest_version": 2,
+	"name": "Kick Tools",
+	"version": "1.0.0",
+	"description": "Enhance Kick.com",
+	"icons": {
+		"48": "48.png"
+	},
+	"content_scripts": [
+		{
+			"matches": [
+				"*://*.kick.com/*"
+			],
+			"js": [
+				"index.js"
+			],
+			"run_at": "document_idle"
+		}
+	],
+	"browser_specific_settings": {
+		"gecko": {
+			"id": "{e2a9c744-9b82-418f-bced-5c0d83316ac0}",
+			"strict_min_version": "116.0"
+		}
+	}
+}
