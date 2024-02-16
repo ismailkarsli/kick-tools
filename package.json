@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --minify --outfile=dist/index.js && cp manifest.json dist/manifest.json && cp 48.png dist/48.png && zip -r -j -FS kick-tools.zip dist/*",
+    "build": "esbuild src/index.ts --bundle --minify --outfile=dist/index.js && cp manifest.json dist/manifest.json && cp -r icons dist && zip -r -j -FS kick-tools.zip dist/*",
     "dev": "tsc -w"
   },
   "devDependencies": {
