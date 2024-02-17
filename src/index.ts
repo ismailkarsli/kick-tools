@@ -11,7 +11,8 @@ export class KickTools {
 	private lastUrl = window.location.href;
 	private isManuallySeeking = false;
 	private observer: MutationObserver;
-	protected settings: UserSettings = {
+	private intervals: number[] = [];
+	private settings: UserSettings = {
 		autoTheaterMode: false,
 		catchStream: true,
 		volume: 0,
@@ -46,11 +47,11 @@ export class KickTools {
 		const seekToLive = oldSTL.cloneNode(true) as HTMLDivElement;
 		controlBar.replaceChild(seekToLive, oldSTL);
 		const seekToLiveIcon = await this.waitForEl<HTMLSpanElement>(".vjs-seek-to-live-control .vjs-icon-placeholder");
-		seekToLiveIcon.classList.remove("vjs-icon-placeholder");
+		seekToLiveIcon.classList.replace("vjs-icon-placeholder", "vjs-stl-icon");
 		const seekToLiveText = await this.waitForEl<HTMLSpanElement>(".vjs-seek-to-live-text");
 		const theaterButton = await this.waitForEl<HTMLDivElement>(".vjs-control-bar .vjs-control .kick-icon-theater");
 
-		// show/hide elements
+		// if everything is found, we can replace or show/hide elements
 		progress.style.display = "flex";
 		liveControl.style.display = "none";
 		playProgress.style.transition = "width 200ms";
@@ -176,6 +177,7 @@ export class KickTools {
 	onObserve(mutations: MutationRecord[]) {
 		if (window.location.href !== this.lastUrl) {
 			this.lastUrl = window.location.href;
+			this.reset();
 			this.mountVideo();
 		}
 		for (const mutation of mutations) {
@@ -207,6 +209,7 @@ export class KickTools {
 					}
 				}
 			}, 200);
+			this.intervals.push(interval);
 		});
 	}
 	getVideoProperties(video: HTMLVideoElement) {
@@ -226,10 +229,12 @@ export class KickTools {
 			atEnd,
 		};
 	}
+
+	reset() {
+		for (const interval of this.intervals) {
+			clearInterval(interval);
+		}
+	}
 }
 
-(async () => {
-	if (globalThis.kickTools) return;
-	globalThis.kickTools = new KickTools();
-	globalThis.kickTools.mountVideo();
-})();
+new KickTools().mountVideo();
