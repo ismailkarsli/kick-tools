@@ -1,11 +1,16 @@
 {
   "type": "module",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --minify --outfile=dist/index.js && cp manifest.json dist/manifest.json && cp -r icons dist && zip -r -j -FS kick-tools.zip dist/*",
-    "dev": "tsc -w"
+    "build": "esbuild src/index.ts --bundle --minify --outfile=dist/index.js",
+    "dev": "nodemon --watch src --ext ts,js --exec 'pnpm build && pnpm create-userscript'",
+    "package": "pnpm build && cp manifest.json dist/manifest.json && cp -r icons dist && zip -r -j -FS kick-tools.zip dist/*",
+    "create-userscript": "cat src/userscript.js dist/index.js > kick-tools.user.js"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.5.3",
+    "@types/firefox-webext-browser": "^120.0.0",
     "esbuild": "^0.20.0",
+    "nodemon": "^3.0.3",
     "typescript": "^5.3.3"
   }
 }

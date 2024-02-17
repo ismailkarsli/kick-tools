@@ -17,6 +17,9 @@
 			"run_at": "document_idle"
 		}
 	],
+	"host_permissions": [
+		"*://kick.com/*"
+	],
 	"browser_specific_settings": {
 		"gecko": {
 			"id": "{e2a9c744-9b82-418f-bced-5c0d83316ac0}",
