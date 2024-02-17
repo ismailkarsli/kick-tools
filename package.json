@@ -3,7 +3,7 @@
   "scripts": {
     "build": "esbuild src/index.ts --bundle --minify --outfile=dist/index.js",
     "dev": "nodemon --watch src --ext ts,js --exec 'pnpm build && pnpm create-userscript'",
-    "package": "pnpm build && cp manifest.json dist/manifest.json && cp -r icons dist && zip -r -j -FS kick-tools.zip dist/*",
+    "package": "pnpm build && cp manifest.json dist/manifest.json && cp -r icons dist && cd dist && zip -r -FSr ../kick-tools.zip .",
     "create-userscript": "cat src/userscript.js dist/index.js > kick-tools.user.js"
   },
   "devDependencies": {
