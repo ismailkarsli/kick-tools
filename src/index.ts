@@ -220,12 +220,10 @@ export class KickTools {
 						// add chat entry back to the chat with same position
 						const previous = mutation.previousSibling;
 						node.style.opacity = "0.6";
-						node.style.textDecoration = "line-through";
 						if (previous) mutation.target.insertBefore(node, previous.nextSibling);
 					} else if (deleted) {
 						// restore old text and replace "deleted" text with it
 						node.style.opacity = "0.6";
-						node.style.textDecoration = "line-through";
 						deleted.replaceWith(node);
 					}
 				}
