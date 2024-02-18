@@ -99,14 +99,17 @@ export class KickTools {
 		// customize some controls if we are only in live stream
 		if (isLive) {
 			// update progress bar and seek to live button on timeupdate
+			const debouncedProgress = debounced(3000, 3000); // debounce to prevent stuttering
 			video.addEventListener("timeupdate", () => {
 				const buffered = video.buffered;
 				if (buffered.length) {
 					const { atEnd, offset, bufferTime } = this.getVideoProperties(video);
 					const progressWidth = atEnd ? 100 : (100 * (bufferTime - offset)) / bufferTime;
-					playProgress.style.width = `${progressWidth}%`;
-					seekToLiveIcon.innerText = atEnd ? "🔴" : "⚫";
-					seekToLiveText.innerText = atEnd ? t("LIVE") : t("BEHIND");
+					debouncedProgress(() => {
+						playProgress.style.width = `${progressWidth}%`;
+						seekToLiveIcon.innerText = atEnd ? "🔴" : "⚫";
+						seekToLiveText.innerText = atEnd ? t("LIVE") : t("BEHIND");
+					});
 					// reset speed to 1x when we reach live
 					if (offset <= 1.25 && video.playbackRate > 1) {
 						speedSelect.value = "1";
@@ -136,6 +139,7 @@ export class KickTools {
 				const time = (bufferTime * p) / 100;
 				video.currentTime = startTime + time;
 				this.isManuallySeeking = true;
+				playProgress.style.width = `${p}%`;
 			});
 		}
 
@@ -279,3 +283,22 @@ export class KickTools {
 }
 
 new KickTools().mountVideo();
+
+// debounce *delay* ms before calling the callback
+// if *timeout* is provided, call the callback after *timeout* ms even if the delay is not reached
+function debounced(delay: number, timeout?: number) {
+	let timeoutId: number;
+	let startedAt: number | null = null;
+	return (callback: (...args: unknown[]) => void) => {
+		if (!startedAt) startedAt = Date.now();
+		clearTimeout(timeoutId);
+		if (timeout && Date.now() - startedAt > timeout) {
+			callback();
+			startedAt = null;
+			return;
+		}
+		timeoutId = setTimeout(() => {
+			callback();
+		}, delay);
+	};
+}
