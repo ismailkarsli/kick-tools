@@ -49,6 +49,7 @@ export class KickTools {
 		}
 		const liveControl = await this.waitForEl<HTMLDivElement>(".vjs-live-control");
 		const playProgress = await this.waitForEl<HTMLDivElement>(".vjs-play-progress");
+		const playProgressTooltip = await this.waitForEl<HTMLDivElement>(".vjs-play-progress .vjs-time-tooltip");
 		const loadProgress = await this.waitForEl<HTMLDivElement>(".vjs-load-progress");
 		let seekToLive = await this.waitForEl<HTMLDivElement>(".vjs-seek-to-live-control");
 		if (isLive) {
@@ -100,6 +101,8 @@ export class KickTools {
 		if (isLive) {
 			// update progress bar and seek to live button on timeupdate
 			const debouncedProgress = debounced(3000, 3000); // debounce to prevent stuttering
+			playProgressTooltip.style.right = "0";
+			playProgressTooltip.style.transform = "translateX(50%)";
 			video.addEventListener("timeupdate", () => {
 				const buffered = video.buffered;
 				if (buffered.length) {
@@ -107,6 +110,7 @@ export class KickTools {
 					const progressWidth = atEnd ? 100 : (100 * (bufferTime - offset)) / bufferTime;
 					debouncedProgress(() => {
 						playProgress.style.width = `${progressWidth}%`;
+						playProgressTooltip.innerText = offset < 1 ? t("live") : `-${Math.floor(offset)}`;
 						seekToLiveIcon.innerText = atEnd ? "🔴" : "⚫";
 						seekToLiveText.innerText = atEnd ? t("LIVE") : t("BEHIND");
 					});
@@ -140,6 +144,7 @@ export class KickTools {
 				video.currentTime = startTime + time;
 				this.isManuallySeeking = true;
 				playProgress.style.width = `${p}%`;
+				playProgressTooltip.innerText = time < 1 ? t("live") : `-${Math.floor(bufferTime - time)}`;
 			});
 		}
 

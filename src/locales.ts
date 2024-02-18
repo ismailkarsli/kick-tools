@@ -1,4 +1,5 @@
 export const en = {
+	live: "live",
 	LIVE: "LIVE",
 	BEHIND: "BEHIND",
 	Speed: "Speed",
@@ -9,6 +10,7 @@ export const en = {
 };
 
 export const tr: { [key in keyof typeof en]: string } = {
+	live: "canlı",
 	LIVE: "CANLI",
 	BEHIND: "GERİDE",
 	Speed: "Hız",
