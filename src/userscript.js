@@ -6,6 +6,6 @@
 // @namespace https://github.com/ismailkarsli
 // @homepageURL https://github.com/ismailkarsli/kick-tools
 // @supportURL https://github.com/ismailkarsli/kick-tools/issues
-// @version 2.1.0
+// @version 2.1.1
 // @match https://*.kick.com/*
 // ==/UserScript==
