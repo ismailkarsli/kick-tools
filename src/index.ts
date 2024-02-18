@@ -38,29 +38,38 @@ export class KickTools {
 	async mountVideo() {
 		// finding required elements in order to manipulate them
 		// we need to clone and replace some of them to remove old event listeners
+		const isLive = !window.location.href.includes("/video/"); // if the video is not live, just add speed control
 		const video = await this.waitForEl<HTMLVideoElement>("video");
 		const controlBar = await this.waitForEl(".vjs-control-bar");
-		const oldProgress = await this.waitForEl<HTMLDivElement>(".vjs-progress-control");
-		const progress = oldProgress.cloneNode(true) as HTMLDivElement;
-		controlBar.replaceChild(progress, oldProgress);
+		let progress = await this.waitForEl<HTMLDivElement>(".vjs-progress-control");
+		if (isLive) {
+			const oldProgress = progress;
+			progress = oldProgress.cloneNode(true) as HTMLDivElement;
+			if (isLive) controlBar.replaceChild(progress, oldProgress);
+		}
 		const liveControl = await this.waitForEl<HTMLDivElement>(".vjs-live-control");
 		const playProgress = await this.waitForEl<HTMLDivElement>(".vjs-play-progress");
 		const loadProgress = await this.waitForEl<HTMLDivElement>(".vjs-load-progress");
-		const oldSTL = await this.waitForEl<HTMLDivElement>(".vjs-seek-to-live-control");
-		const seekToLive = oldSTL.cloneNode(true) as HTMLDivElement;
-		controlBar.replaceChild(seekToLive, oldSTL);
+		let seekToLive = await this.waitForEl<HTMLDivElement>(".vjs-seek-to-live-control");
+		if (isLive) {
+			const oldSeekToLive = seekToLive;
+			seekToLive = seekToLive.cloneNode(true) as HTMLDivElement;
+			controlBar.replaceChild(seekToLive, oldSeekToLive);
+		}
 		const seekToLiveIcon = await this.waitForEl<HTMLSpanElement>(".vjs-seek-to-live-control .vjs-icon-placeholder");
 		seekToLiveIcon.classList.replace("vjs-icon-placeholder", "vjs-stl-icon");
 		const seekToLiveText = await this.waitForEl<HTMLSpanElement>(".vjs-seek-to-live-text");
 		const theaterButton = await this.waitForEl<HTMLDivElement>(".vjs-control-bar .vjs-control .kick-icon-theater");
 
 		// if everything is found, we can replace or show/hide elements
-		progress.style.display = "flex";
-		liveControl.style.display = "none";
+		if (isLive) {
+			progress.style.display = "flex";
+			seekToLive.style.display = "inherit";
+			seekToLiveIcon.style.marginRight = "5px";
+			liveControl.style.display = "none";
+		}
 		playProgress.style.transition = "width 200ms";
 		loadProgress.style.display = "none";
-		seekToLive.style.display = "inherit";
-		seekToLiveIcon.style.marginRight = "5px";
 		if (theaterButton && this.settings.autoTheaterMode) theaterButton.click();
 
 		// add speed control right after seek to live
@@ -87,53 +96,58 @@ export class KickTools {
 		seekToLive.parentNode?.insertBefore(speedControl, seekToLive.nextSibling);
 		const speedSelect = speedControl.querySelector("select") as HTMLSelectElement;
 
-		// update progress bar and seek to live button on timeupdate
-		video.addEventListener("timeupdate", () => {
-			const buffered = video.buffered;
-			if (buffered.length) {
-				const { atEnd, offset, bufferTime } = this.getVideoProperties(video);
-				const progressWidth = atEnd ? 100 : (100 * (bufferTime - offset)) / bufferTime;
-				playProgress.style.width = `${progressWidth}%`;
-				seekToLiveIcon.innerText = atEnd ? "🔴" : "⚫";
-				seekToLiveText.innerText = atEnd ? t("LIVE") : t("BEHIND");
-				// reset speed to 1x when we reach live
-				if (offset <= 1.25) {
-					speedSelect.value = "1";
-					video.playbackRate = 1;
-					this.isManuallySeeking = false;
-					// if user selected to catch up with live and if we are behind, make the speed 1.1
-				} else if (offset >= 3 && this.settings.catchStream && !this.isManuallySeeking) {
-					speedSelect.value = "1.1";
-					video.playbackRate = 1.1;
-					this.isManuallySeeking = false;
+		// customize some controls if we are only in live stream
+		if (isLive) {
+			// update progress bar and seek to live button on timeupdate
+			video.addEventListener("timeupdate", () => {
+				const buffered = video.buffered;
+				if (buffered.length) {
+					const { atEnd, offset, bufferTime } = this.getVideoProperties(video);
+					const progressWidth = atEnd ? 100 : (100 * (bufferTime - offset)) / bufferTime;
+					playProgress.style.width = `${progressWidth}%`;
+					seekToLiveIcon.innerText = atEnd ? "🔴" : "⚫";
+					seekToLiveText.innerText = atEnd ? t("LIVE") : t("BEHIND");
+					// reset speed to 1x when we reach live
+					if (offset <= 1.25 && video.playbackRate > 1) {
+						speedSelect.value = "1";
+						video.playbackRate = 1;
+						this.isManuallySeeking = false;
+						// if user selected to catch up with live and if we are behind, make the speed 1.1
+					} else if (offset >= 3 && this.settings.catchStream && !this.isManuallySeeking) {
+						speedSelect.value = "1.1";
+						video.playbackRate = 1.1;
+						this.isManuallySeeking = false;
+					}
 				}
-			}
-		});
+			});
 
-		// save volume level to local storage
+			// directly seek to live
+			seekToLive.addEventListener("click", (e) => {
+				const { endTime } = this.getVideoProperties(video);
+				video.currentTime = endTime;
+			});
+
+			// update time on seek click
+			progress.addEventListener("click", (e) => {
+				const { width, left } = progress.getBoundingClientRect();
+				const { startTime, bufferTime } = this.getVideoProperties(video);
+				const x = e.clientX - left;
+				const p = (100 * x) / width;
+				const time = (bufferTime * p) / 100;
+				video.currentTime = startTime + time;
+				this.isManuallySeeking = true;
+			});
+		}
+
+		// save volume level
 		video.addEventListener("volumechange", () => this.set("volume", video.volume));
-		// restore volume level from local storage
+		// restore volume level
 		const volume = this.settings.volume;
 		if (volume) {
 			video.muted = false;
 			video.volume = volume;
 		}
 
-		// update time on seek click
-		progress.addEventListener("click", (e) => {
-			const { width, left } = progress.getBoundingClientRect();
-			const { startTime, bufferTime } = this.getVideoProperties(video);
-			const x = e.clientX - left;
-			const p = (100 * x) / width;
-			const time = (bufferTime * p) / 100;
-			video.currentTime = startTime + time;
-			this.isManuallySeeking = true;
-		});
-		// directly seek to live
-		seekToLive.addEventListener("click", (e) => {
-			const { endTime } = this.getVideoProperties(video);
-			video.currentTime = endTime;
-		});
 		// update speed on select change
 		speedSelect.addEventListener("change", () => {
 			video.playbackRate = parseFloat(speedSelect.value);
