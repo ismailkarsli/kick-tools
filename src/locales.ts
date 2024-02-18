@@ -5,6 +5,7 @@ export const en = {
 	"Kick Tools Settings": "Kick Tools Settings",
 	"Auto theater mode": "Auto theater mode",
 	"Auto speed up if behind live (1.1x)": "Auto speed up if behind live (1.1x)",
+	"Show removed chat entries": "Show removed chat entries",
 };
 
 export const tr: { [key in keyof typeof en]: string } = {
@@ -14,6 +15,7 @@ export const tr: { [key in keyof typeof en]: string } = {
 	"Kick Tools Settings": "Kick Tools Ayarları",
 	"Auto theater mode": "Otomatik tiyatro modu",
 	"Auto speed up if behind live (1.1x)": "Canlıdan gerideyse oto hızlandır (1.1x)",
+	"Show removed chat entries": "Silinen mesajları göster",
 };
 
 const locale = navigator.language.split("-")[0];

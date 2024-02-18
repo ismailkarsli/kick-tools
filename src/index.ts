@@ -4,6 +4,7 @@ import { t } from "./locales";
 interface UserSettings {
 	autoTheaterMode: boolean;
 	catchStream: boolean;
+	showRemovedChat: boolean;
 	volume: number;
 }
 
@@ -15,23 +16,25 @@ export class KickTools {
 	private settings: UserSettings = {
 		autoTheaterMode: false,
 		catchStream: true,
+		showRemovedChat: false,
 		volume: 0,
 	};
 
-	set<T extends keyof UserSettings>(key: T, value: UserSettings[T]) {
-		this.settings[key] = value;
-		localStorage.setItem("kickToolsSettings", JSON.stringify(this.settings));
-	}
-
 	constructor() {
 		// load settings from local storage
-		const settings = localStorage.getItem("kickToolsSettings");
+		const settings = localStorage.getItem("KickToolsSettings");
 		if (settings) this.settings = JSON.parse(settings);
 
 		// add mutation observer to catch url changes and detect settings panel
 		this.observer = new MutationObserver(this.onObserve.bind(this));
 		this.observer.observe(document.body, { childList: true, subtree: true });
 	}
+
+	set<T extends keyof UserSettings>(key: T, value: UserSettings[T]) {
+		this.settings[key] = value;
+		localStorage.setItem("KickToolsSettings", JSON.stringify(this.settings));
+	}
+
 	async mountVideo() {
 		// finding required elements in order to manipulate them
 		// we need to clone and replace some of them to remove old event listeners
@@ -159,18 +162,21 @@ export class KickTools {
 		const actionsMenu = await this.waitForEl<HTMLDivElement>(".chat-actions-popup");
 		if (!actionsMenu) return this.log("Actions menu not found");
 		const settingsContainer = getSettingsContainer(actionsMenu);
-		const catchStreamSwitch = getSwitch(
-			t("Auto speed up if behind live (1.1x)"),
-			this.settings.catchStream,
-			(value) => {
+		settingsContainer.appendChild(
+			getSwitch(t("Auto speed up if behind live (1.1x)"), this.settings.catchStream, (value) => {
 				this.set("catchStream", value);
-			},
+			}),
 		);
-		const autoTheaterModeSwitch = getSwitch(t("Auto theater mode"), this.settings.autoTheaterMode, (value) => {
-			this.set("autoTheaterMode", value);
-		});
-		settingsContainer.appendChild(catchStreamSwitch);
-		settingsContainer.appendChild(autoTheaterModeSwitch);
+		settingsContainer.appendChild(
+			getSwitch(t("Auto theater mode"), this.settings.autoTheaterMode, (value) => {
+				this.set("autoTheaterMode", value);
+			}),
+		);
+		settingsContainer.appendChild(
+			getSwitch(t("Show removed chat entries"), this.settings.showRemovedChat, (value) => {
+				this.set("showRemovedChat", value);
+			}),
+		);
 		actionsMenu.appendChild(settingsContainer);
 	}
 
@@ -182,10 +188,33 @@ export class KickTools {
 		}
 		for (const mutation of mutations) {
 			for (const node of mutation.addedNodes) {
-				if (!node || !(node instanceof HTMLDivElement)) continue;
+				if (!node || !(node instanceof Element)) continue;
 				const actionsMenu = node.querySelector(".chat-actions-menu-list");
 				if (!actionsMenu) continue;
 				this.mountSettings(actionsMenu as HTMLDivElement);
+			}
+
+			if (this.settings.showRemovedChat) {
+				for (const node of mutation.removedNodes) {
+					if (!node || !(node instanceof HTMLElement)) continue;
+					if (!(mutation.target instanceof HTMLElement)) continue;
+					// if content of the chat is removed but the chat itself is not
+					const deleted = mutation.target.querySelector(".chat-entry-content-deleted");
+					// chat entry is removed
+					const removedEntry = node.dataset.chatEntry;
+					if (removedEntry) {
+						// add chat entry back to the chat with same position
+						const previous = mutation.previousSibling;
+						node.style.opacity = "0.6";
+						node.style.textDecoration = "line-through";
+						if (previous) mutation.target.insertBefore(node, previous.nextSibling);
+					} else if (deleted) {
+						// restore old text and replace "deleted" text with it
+						node.style.opacity = "0.6";
+						node.style.textDecoration = "line-through";
+						deleted.replaceWith(node);
+					}
+				}
 			}
 		}
 	}
