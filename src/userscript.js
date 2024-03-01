@@ -7,6 +7,6 @@
 // @homepageURL https://github.com/ismailkarsli/kick-tools
 // @supportURL https://github.com/ismailkarsli/kick-tools/issues
 // @updateURL https://raw.githubusercontent.com/ismailkarsli/kick-tools/main/kick-tools.user.js
-// @version 2.2.0
+// @version 2.2.1
 // @match https://*.kick.com/*
 // ==/UserScript==
