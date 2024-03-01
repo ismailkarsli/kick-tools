@@ -83,15 +83,15 @@ export class KickTools {
 		speedControl.innerHTML = `
       <span style="margin-right: 4px">${t("Speed")}:</span>
       <select style="color: white; background: transparent; border: none; padding: 1px;">
-        <option value="0.25">0.25x</option>
-        <option value="0.5">0.5x</option>
-        <option value="0.75">0.75x</option>
-        <option value="1" selected="selected">1x</option>
-				<option value="1.1">1.1x</option>
-        <option value="1.25">1.25x</option>
-        <option value="1.5">1.5x</option>
-        <option value="2">2x</option>
-				<option value="3">3x</option>
+        <option style="background-color: black" value="0.25">0.25x</option>
+        <option style="background-color: black" value="0.5">0.5x</option>
+        <option style="background-color: black" value="0.75">0.75x</option>
+        <option style="background-color: black" value="1" selected="selected">1x</option>
+				<option style="background-color: black" value="1.1">1.1x</option>
+        <option style="background-color: black" value="1.25">1.25x</option>
+        <option style="background-color: black" value="1.5">1.5x</option>
+        <option style="background-color: black" value="2">2x</option>
+				<option style="background-color: black" value="3">3x</option>
       </select>
     `;
 		seekToLive.parentNode?.insertBefore(speedControl, seekToLive.nextSibling);
