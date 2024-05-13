@@ -91,7 +91,6 @@ export class KickTools {
         <option style="background-color: black" value="1.25">1.25x</option>
         <option style="background-color: black" value="1.5">1.5x</option>
         <option style="background-color: black" value="2">2x</option>
-				<option style="background-color: black" value="3">3x</option>
       </select>
     `;
 		seekToLive.parentNode?.insertBefore(speedControl, seekToLive.nextSibling);
@@ -114,13 +113,18 @@ export class KickTools {
 						seekToLiveIcon.innerText = atEnd ? "🔴" : "⚫";
 						seekToLiveText.innerText = atEnd ? t("LIVE") : t("BEHIND");
 					});
+
 					// reset speed to 1x when we reach live
-					if (offset <= 1.25 && video.playbackRate > 1) {
+					// we shouldn't outrun live so set safer max lag value.
+					const maxLag = video.playbackRate * 2 + 1;
+					if (video.playbackRate > 1 && offset <= maxLag / 2) {
 						speedSelect.value = "1";
 						video.playbackRate = 1;
 						this.isManuallySeeking = false;
-						// if user selected to catch up with live and if we are behind, make the speed 1.1
-					} else if (offset >= 3 && this.settings.catchStream && !this.isManuallySeeking) {
+					}
+
+					// if user selected to catch up with live and if we are behind, make the speed 1.1
+					if (offset >= maxLag && this.settings.catchStream && !this.isManuallySeeking) {
 						speedSelect.value = "1.1";
 						video.playbackRate = 1.1;
 						this.isManuallySeeking = false;
