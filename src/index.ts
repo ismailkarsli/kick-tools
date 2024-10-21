@@ -3,21 +3,16 @@ import { t } from "./locales";
 
 interface UserSettings {
 	autoTheaterMode: boolean;
-	catchStream: boolean;
 	showRemovedChat: boolean;
-	volume: number;
 }
 
 export class KickTools {
 	private lastUrl = window.location.href;
-	private isManuallySeeking = false;
 	private observer: MutationObserver;
 	private intervals: number[] = [];
 	private settings: UserSettings = {
-		autoTheaterMode: false,
-		catchStream: true,
-		showRemovedChat: false,
-		volume: 0,
+		autoTheaterMode: true,
+		showRemovedChat: true,
 	};
 
 	constructor() {
@@ -35,54 +30,28 @@ export class KickTools {
 		localStorage.setItem("KickToolsSettings", JSON.stringify(this.settings));
 	}
 
-	async mountVideo() {
+	async mount() {
 		// finding required elements in order to manipulate them
-		// we need to clone and replace some of them to remove old event listeners
-		const isLive = !window.location.href.includes("/video/"); // if the video is not live, just add speed control
 		const video = await this.waitForEl<HTMLVideoElement>("video");
-		const controlBar = await this.waitForEl(".vjs-control-bar");
-		let progress = await this.waitForEl<HTMLDivElement>(".vjs-progress-control");
-		if (isLive) {
-			const oldProgress = progress;
-			progress = oldProgress.cloneNode(true) as HTMLDivElement;
-			if (isLive) controlBar.replaceChild(progress, oldProgress);
-		}
-		const liveControl = await this.waitForEl<HTMLDivElement>(".vjs-live-control");
-		const playProgress = await this.waitForEl<HTMLDivElement>(".vjs-play-progress");
-		const playProgressTooltip = await this.waitForEl<HTMLDivElement>(".vjs-play-progress .vjs-time-tooltip");
-		const loadProgress = await this.waitForEl<HTMLDivElement>(".vjs-load-progress");
-		let seekToLive = await this.waitForEl<HTMLDivElement>(".vjs-seek-to-live-control");
-		if (isLive) {
-			const oldSeekToLive = seekToLive;
-			seekToLive = seekToLive.cloneNode(true) as HTMLDivElement;
-			controlBar.replaceChild(seekToLive, oldSeekToLive);
-		}
-		const seekToLiveIcon = await this.waitForEl<HTMLSpanElement>(".vjs-seek-to-live-control .vjs-icon-placeholder");
-		seekToLiveIcon.classList.replace("vjs-icon-placeholder", "vjs-stl-icon");
-		const seekToLiveText = await this.waitForEl<HTMLSpanElement>(".vjs-seek-to-live-text");
-		const theaterButton = await this.waitForEl<HTMLDivElement>(".vjs-control-bar .vjs-control .kick-icon-theater");
+		const controlPanel = await this.waitForEl<HTMLDivElement>("video + .z-controls");
+		const controlPanelRight = await this.waitForEl<HTMLDivElement>("div:nth-child(2)", controlPanel);
+		const theaterButton = await this.waitForEl<HTMLDivElement>("button:nth-child(2)", controlPanelRight);
 
-		// if everything is found, we can replace or show/hide elements
-		if (isLive) {
-			progress.style.display = "flex";
-			seekToLive.style.display = "inherit";
-			seekToLiveIcon.style.marginRight = "5px";
-			liveControl.style.display = "none";
-		}
-		playProgress.style.transition = "width 200ms";
-		loadProgress.style.display = "none";
-		if (theaterButton && this.settings.autoTheaterMode) theaterButton.click();
+		// if (theaterButton && this.settings.autoTheaterMode) theaterButton.click();
 
-		// add speed control right after seek to live
-		const speedControl = document.createElement("div");
-		speedControl.style.display = "flex";
-		speedControl.style.alignItems = "center";
-		speedControl.style.marginLeft = "10px";
-		speedControl.style.color = "white";
-		speedControl.style.fontSize = "12px";
-		speedControl.innerHTML = `
+		// add speed control if not exists
+		const oldSpeedSelect = controlPanelRight.querySelector("#speed-select");
+		this.log(oldSpeedSelect);
+		if (!oldSpeedSelect) {
+			const speedControl = document.createElement("div");
+			speedControl.style.display = "flex";
+			speedControl.style.alignItems = "center";
+			speedControl.style.marginLeft = "10px";
+			speedControl.style.color = "white";
+			speedControl.style.fontSize = "12px";
+			speedControl.innerHTML = `
       <span style="margin-right: 4px">${t("Speed")}:</span>
-      <select style="color: white; background: transparent; border: none; padding: 1px;">
+      <select id="speed-select" style="color: white; background: transparent; border: none; padding: 1px;">
         <option style="background-color: black" value="0.25">0.25x</option>
         <option style="background-color: black" value="0.5">0.5x</option>
         <option style="background-color: black" value="0.75">0.75x</option>
@@ -93,79 +62,13 @@ export class KickTools {
         <option style="background-color: black" value="2">2x</option>
       </select>
     `;
-		seekToLive.parentNode?.insertBefore(speedControl, seekToLive.nextSibling);
-		const speedSelect = speedControl.querySelector("select") as HTMLSelectElement;
-
-		// customize some controls if we are only in live stream
-		if (isLive) {
-			// update progress bar and seek to live button on timeupdate
-			const debouncedProgress = debounced(3000, 3000); // debounce to prevent stuttering
-			playProgressTooltip.style.right = "0";
-			playProgressTooltip.style.transform = "translateX(50%)";
-			video.addEventListener("timeupdate", () => {
-				const buffered = video.buffered;
-				if (buffered.length) {
-					const { atEnd, offset, bufferTime } = this.getVideoProperties(video);
-					const progressWidth = atEnd ? 100 : (100 * (bufferTime - offset)) / bufferTime;
-					debouncedProgress(() => {
-						playProgress.style.width = `${progressWidth}%`;
-						playProgressTooltip.innerText = offset < 1 ? t("live") : `-${Math.floor(offset)}`;
-						seekToLiveIcon.innerText = atEnd ? "🔴" : "⚫";
-						seekToLiveText.innerText = atEnd ? t("LIVE") : t("BEHIND");
-					});
-
-					// reset speed to 1x when we reach live
-					// we shouldn't outrun live so set safer max lag value.
-					const maxLag = video.playbackRate * 2 + 1;
-					if (video.playbackRate > 1 && offset <= maxLag / 2) {
-						speedSelect.value = "1";
-						video.playbackRate = 1;
-						this.isManuallySeeking = false;
-					}
-
-					// if user selected to catch up with live and if we are behind, make the speed 1.1
-					if (offset >= maxLag && this.settings.catchStream && !this.isManuallySeeking) {
-						speedSelect.value = "1.1";
-						video.playbackRate = 1.1;
-						this.isManuallySeeking = false;
-					}
-				}
-			});
-
-			// directly seek to live
-			seekToLive.addEventListener("click", (e) => {
-				const { endTime } = this.getVideoProperties(video);
-				video.currentTime = endTime;
-			});
-
-			// update time on seek click
-			progress.addEventListener("click", (e) => {
-				const { width, left } = progress.getBoundingClientRect();
-				const { startTime, bufferTime } = this.getVideoProperties(video);
-				const x = e.clientX - left;
-				const p = (100 * x) / width;
-				const time = (bufferTime * p) / 100;
-				video.currentTime = startTime + time;
-				this.isManuallySeeking = true;
-				playProgress.style.width = `${p}%`;
-				playProgressTooltip.innerText = time < 1 ? t("live") : `-${Math.floor(bufferTime - time)}`;
+			const speedSelect = speedControl.querySelector("select") as HTMLSelectElement;
+			controlPanel.appendChild(speedSelect);
+			// update speed on select change
+			speedSelect.addEventListener("change", () => {
+				video.playbackRate = Number.parseFloat(speedSelect.value);
 			});
 		}
-
-		// save volume level
-		video.addEventListener("volumechange", () => this.set("volume", video.volume));
-		// restore volume level
-		const volume = this.settings.volume;
-		if (volume) {
-			video.muted = false;
-			video.volume = volume;
-		}
-
-		// update speed on select change
-		speedSelect.addEventListener("change", () => {
-			video.playbackRate = parseFloat(speedSelect.value);
-			this.isManuallySeeking = true;
-		});
 	}
 
 	mountSettings(actionsMenu: HTMLDivElement) {
@@ -190,11 +93,6 @@ export class KickTools {
 		if (!actionsMenu) return this.log("Actions menu not found");
 		const settingsContainer = getSettingsContainer(actionsMenu);
 		settingsContainer.appendChild(
-			getSwitch(t("Auto speed up if behind live (1.1x)"), this.settings.catchStream, (value) => {
-				this.set("catchStream", value);
-			}),
-		);
-		settingsContainer.appendChild(
 			getSwitch(t("Auto theater mode"), this.settings.autoTheaterMode, (value) => {
 				this.set("autoTheaterMode", value);
 			}),
@@ -208,11 +106,8 @@ export class KickTools {
 	}
 
 	onObserve(mutations: MutationRecord[]) {
-		if (window.location.href !== this.lastUrl) {
-			this.lastUrl = window.location.href;
-			this.reset();
-			this.mountVideo();
-		}
+		this.reset();
+		this.mount();
 		for (const mutation of mutations) {
 			for (const node of mutation.addedNodes) {
 				if (!node || !(node instanceof Element)) continue;
@@ -251,6 +146,7 @@ export class KickTools {
 		return new Promise((resolve) => {
 			let retries = 0;
 			const interval = setInterval(() => {
+				this.log(`Waiting for ${selector}`);
 				const element = parent.querySelector(selector);
 				if (element) {
 					clearInterval(interval);
@@ -259,29 +155,12 @@ export class KickTools {
 					retries++;
 					if (retries > 100) {
 						clearInterval(interval);
-						console.error(`Element not found: ${selector}`);
+						this.log(`Element not found: ${selector}`);
 					}
 				}
 			}, 200);
 			this.intervals.push(interval);
 		});
-	}
-	getVideoProperties(video: HTMLVideoElement) {
-		const buffered = video.buffered;
-		const currentTime = Math.floor(video.currentTime);
-		const startTime = Math.floor(buffered.start(0));
-		const endTime = Math.floor(buffered.end(0));
-		const bufferTime = endTime - startTime;
-		const offset = endTime - currentTime;
-		const atEnd = offset <= 3;
-		return {
-			currentTime,
-			startTime,
-			endTime,
-			bufferTime,
-			offset,
-			atEnd,
-		};
 	}
 
 	reset() {
@@ -291,23 +170,4 @@ export class KickTools {
 	}
 }
 
-new KickTools().mountVideo();
-
-// debounce *delay* ms before calling the callback
-// if *timeout* is provided, call the callback after *timeout* ms even if the delay is not reached
-function debounced(delay: number, timeout?: number) {
-	let timeoutId: number;
-	let startedAt: number | null = null;
-	return (callback: (...args: unknown[]) => void) => {
-		if (!startedAt) startedAt = Date.now();
-		clearTimeout(timeoutId);
-		if (timeout && Date.now() - startedAt > timeout) {
-			callback();
-			startedAt = null;
-			return;
-		}
-		timeoutId = setTimeout(() => {
-			callback();
-		}, delay);
-	};
-}
+new KickTools().mount();
